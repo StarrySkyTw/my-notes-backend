@@ -9,8 +9,12 @@ from flask_sqlalchemy import SQLAlchemy
 
 # 初始化 Flask 應用程式
 app = Flask(__name__)
-# 設定 CORS，允許所有來源的請求，方便本機開發
-CORS(app)
+
+# --- CORS 設定修正 ---
+# 將原本簡單的 CORS(app) 改為更明確的資源設定。
+# 這會告訴 Flask-CORS 主動為所有 /api/ 開頭的路由處理 OPTIONS 預檢請求，
+# 從而解決 Flask 路由系統搶先回傳 404 的問題。
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # --- 資料庫設定 ---
 # 設定資料庫連線的 URI。
