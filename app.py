@@ -86,6 +86,49 @@ def add_note():
     # 回傳剛新增的筆記，並附上 HTTP 狀態碼 201
     return jsonify(note.to_dict()), 201
 
+# 路由 3: 更新一筆指定的筆記
+@app.route('/api/notes/<int:note_id>', methods=['PUT'])
+def update_note(note_id):
+    """
+    處理 PUT 請求，根據提供的 ID 更新一筆筆記。
+    """
+    # 透過 ID 從資料庫中尋找筆記，如果找不到會回傳 None
+    note = db.session.get(Note, note_id)
+    if note is None:
+        return jsonify({"error": "找不到該筆記"}), 404
+
+    # 獲取更新資料
+    update_data = request.get_json(silent=True)
+    if not update_data:
+        return jsonify({"error": "請求資料為空"}), 400
+
+    # 更新筆記的 subject 和 content 欄位
+    note.subject = update_data.get('subject', note.subject)
+    note.content = update_data.get('content', note.content)
+
+    # 提交變更
+    db.session.commit()
+    print(f"更新筆記 ID {note_id}")
+    return jsonify(note.to_dict())
+
+# 路由 4: 刪除一筆指定的筆記
+@app.route('/api/notes/<int:note_id>', methods=['DELETE'])
+def delete_note(note_id):
+    """
+    處理 DELETE 請求，根據提供的 ID 刪除一筆筆記。
+    """
+    note = db.session.get(Note, note_id)
+    if note is None:
+        return jsonify({"error": "找不到該筆記"}), 404
+
+    # 從 session 中刪除物件並提交
+    db.session.delete(note)
+    db.session.commit()
+    
+    print(f"刪除筆記 ID {note_id}")
+    # 回傳一個空的成功回應
+    return '', 204
+
 # --- 主程式進入點 ---
 if __name__ == '__main__':
     # 透過 with app.app_context()，確保應用程式的上下文被正確設定
