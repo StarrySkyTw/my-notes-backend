@@ -29,6 +29,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 初始化 SQLAlchemy，與我們的 Flask app 綁定
 db = SQLAlchemy(app)
+SUBJECT_MAX_LENGTH = 100
 
 
 # --- 資料庫模型 (Model) ---
@@ -39,7 +40,7 @@ class Note(db.Model):
     
     # 定義欄位
     id = db.Column(db.Integer, primary_key=True) # 主鍵，會自動增長
-    subject = db.Column(db.String(100), nullable=False) # 筆記的科目，不允許為空
+    subject = db.Column(db.String(SUBJECT_MAX_LENGTH), nullable=False) # 筆記的科目，不允許為空
     content = db.Column(db.Text, nullable=False) # 筆記的內容，不允許為空
 
     # 這個函式能幫助我們方便地將 Note 物件轉換成 Python 字典，以便轉成 JSON
@@ -51,6 +52,17 @@ class Note(db.Model):
         }
 
 # --- API 路由 (Endpoints) ---
+
+def validate_note_fields(data):
+    for field in ('subject', 'content'):
+        if field in data and not isinstance(data[field], str):
+            return f"'{field}' 必須是字串"
+
+    if len(data.get('subject', '')) > SUBJECT_MAX_LENGTH:
+        return f"'subject' 不可超過 {SUBJECT_MAX_LENGTH} 個字元"
+
+    return None
+
 
 # 路由 1: 取得所有筆記 (從資料庫讀取)
 @app.route('/api/notes', methods=['GET'])
@@ -72,8 +84,11 @@ def add_note():
     處理 POST 請求，將新筆記的資料存入資料庫。
     """
     new_note_data = request.get_json(silent=True)
-    if not new_note_data or 'content' not in new_note_data or 'subject' not in new_note_data:
+    if not isinstance(new_note_data, dict) or not {'subject', 'content'}.issubset(new_note_data):
         return jsonify({"error": "資料不完整，需要 'subject' 和 'content' 欄位"}), 400
+    error = validate_note_fields(new_note_data)
+    if error:
+        return jsonify({"error": error}), 400
 
     # 建立一個新的 Note 物件
     note = Note(
@@ -103,8 +118,11 @@ def update_note(note_id):
 
     # 獲取更新資料
     update_data = request.get_json(silent=True)
-    if not update_data:
+    if not isinstance(update_data, dict) or not update_data:
         return jsonify({"error": "請求資料為空"}), 400
+    error = validate_note_fields(update_data)
+    if error:
+        return jsonify({"error": error}), 400
 
     # 更新筆記的 subject 和 content 欄位
     note.subject = update_data.get('subject', note.subject)
